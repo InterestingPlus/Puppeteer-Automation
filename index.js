@@ -10,7 +10,7 @@ const PORT = 3000;
 const executablePath = "/usr/bin/google-chrome"; // or Windows/macOS path
 
 app.get("/", (req, res) => {
-  res.send("Hello World <a href='/get-title'>Fetch Title</a>");
+  res.send("Hello World <a href='/auto-login'>Get Logged In</a>");
 });
 
 // ✅ Helper to get option value by its visible text
