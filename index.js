@@ -49,7 +49,7 @@ app.get("/auto-login", async (req, res) => {
 
   try {
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
       executablePath: chromePath, // 👈 Must match downloaded path
     });
