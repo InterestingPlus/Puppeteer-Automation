@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-# Step 1: Install dependencies
+echo "Installing dependencies..."
 npm install
 
-# Step 2: Set Puppeteer cache directory explicitly
+echo "Setting Puppeteer cache path..."
 export PUPPETEER_CACHE_DIR=/opt/render/project/src/.cache/puppeteer
 
-# Step 3: Download Chromium
+echo "Installing Chrome via Puppeteer..."
 npx puppeteer browsers install chrome
