@@ -7,7 +7,12 @@ app.use(express.json());
 const PORT = 3000;
 
 // 👇 Replace with your actual Chrome path
-const executablePath = "/usr/bin/google-chrome"; // or Windows/macOS path
+const path = require('path');
+const chromePath = path.resolve(
+  __dirname,
+  '.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome'
+);
+
 
 app.get("/", (req, res) => {
   res.send("Hello World <a href='/auto-login'>Get Logged In</a>");
@@ -44,9 +49,9 @@ app.get("/auto-login", async (req, res) => {
 
   try {
     const browser = await puppeteer.launch({
-      headless: true, // Show browser for debug
-      //   executablePath,
+      headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath: chromePath, // 👈 Must match downloaded path
     });
 
     const page = await browser.newPage();
