@@ -1,10 +1,11 @@
-# render-build.sh
 #!/usr/bin/env bash
 set -e
 
+# Step 1: Install dependencies
 npm install
-PUPPETEER_CACHE_DIR=/opt/render/project/src/.cache/puppeteer
-export PUPPETEER_CACHE_DIR
 
-npm run build  # if applicable
+# Step 2: Set Puppeteer cache directory explicitly
+export PUPPETEER_CACHE_DIR=/opt/render/project/src/.cache/puppeteer
+
+# Step 3: Download Chromium
 npx puppeteer browsers install chrome
