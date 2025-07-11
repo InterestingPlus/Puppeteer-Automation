@@ -9,13 +9,12 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deployment
 
-// __dirname is already available in CommonJS modules (when using require)
-// No need to define it using fileURLToPath.
-
-// 👇 Define the path to the downloaded Chrome executable for Render deployment
-// Based on your logs: /opt/render/project/src/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
+// 👇 Define the path to the downloaded Chrome executable
+// Based on your logs, Puppeteer downloads it to:
+// /opt/render/project/src/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
+// So, we construct the path relative to __dirname (which is /opt/render/project/src/)
 const chromePath = path.resolve(
-    __dirname, // __dirname is available here
+    __dirname,
     '.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome'
 );
 
@@ -47,7 +46,7 @@ async function getOptionValueByText(page, selectName, visibleText) {
     return optionValue;
 }
 
-// 📌 GET Automation API
+// 📌 GET Title API
 app.get("/auto-login", async (req, res) => {
     const login_id = "28494";
     const password = "Mgp@28494";
@@ -61,28 +60,20 @@ app.get("/auto-login", async (req, res) => {
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage", // Recommended for Docker/Linux environments to avoid memory issues
-                // Additional args for stability in headless environments
-                "--disable-gpu",
-                "--no-zygote",
-                "--single-process",
-                "--disable-accelerated-video-decode",
-                "--disable-accelerated-mhtml-generation",
-                "--disable-features=site-per-process",
             ],
             executablePath: chromePath, // 👈 Must match downloaded path
-            dumpio: true, // This will pipe browser process stdout/stderr to Node.js process stdout/stderr
         });
 
         const page = await browser.newPage();
 
-        // ⏱️ Increase default timeout for all page operations to 120 seconds
-        await page.setDefaultNavigationTimeout(120000); // 120 seconds
-        await page.setDefaultTimeout(120000); // 120 seconds for other operations like .type(), .click()
+        // ⏱️ Increase default timeout for all page operations
+        await page.setDefaultNavigationTimeout(90000); // 90 seconds (was 30s)
+        await page.setDefaultTimeout(90000); // 90 seconds for other operations like .type(), .click()
 
         console.log("🌐 Navigating to https://gramsuvidha.gujarat.gov.in...");
         await page.goto("https://gramsuvidha.gujarat.gov.in", {
-            waitUntil: "load", // Changed to 'load' for more robustness
-            timeout: 120000, // Explicitly set timeout for this navigation
+            waitUntil: "domcontentloaded",
+            timeout: 90000, // Explicitly set timeout for this navigation
         });
         console.log("✅ Navigation complete.");
 
@@ -105,6 +96,9 @@ app.get("/auto-login", async (req, res) => {
 
         console.log("🔄 Checking if dropdowns are populated...");
         while (!dropdownsReady && attempts < maxAttempts) {
+            // Click to ensure dropdowns are active/visible, though not always necessary
+            // await Promise.all([page.click('select[name="DDLModule"]')]); // This might not be needed if input event triggers it
+
             dropdownsReady = await page.evaluate(() => {
                 const moduleSelect = document.querySelector('select[name="DDLModule"]');
                 const userSelect = document.querySelector('select[name="DDLUser"]');
@@ -189,7 +183,7 @@ app.get("/auto-login", async (req, res) => {
 
         console.log("⏳ Waiting for page to reload after DDLUser change...");
         // Wait for navigation after the DDLUser change triggers a postback
-        await page.waitForNavigation({ waitUntil: "load", timeout: 120000 }); // Changed to 'load'
+        await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 90000 });
         console.log("✅ Page reloaded after DDLUser change.");
 
         let year;
@@ -260,7 +254,7 @@ app.get("/auto-login", async (req, res) => {
         console.log("⬆️ Clicking login button and waiting for navigation...");
         await Promise.all([
             page.click('input[name="BtnLogin"]'),
-            page.waitForNavigation({ waitUntil: "load", timeout: 120000 }), // Changed to 'load'
+            page.waitForNavigation({ waitUntil: "networkidle2", timeout: 90000 }), // Explicit timeout for login navigation
         ]);
         console.log("✅ Login button clicked and navigation complete.");
 
@@ -271,7 +265,7 @@ app.get("/auto-login", async (req, res) => {
             console.log("✅ Login successful. Navigating to Milkat Page...");
             await page.goto(
                 "https://gramsuvidha.gujarat.gov.in/PanchayatVero/ListMasterMilkatPV.aspx",
-                { waitUntil: "load", timeout: 120000 } // Changed to 'load'
+                { waitUntil: "networkidle2", timeout: 90000 } // Explicit timeout for final navigation
             );
             console.log("✅ Successfully navigated to Milkat Page.");
 
