@@ -1,4 +1,3 @@
-// server.js
 
 const express = require("express");
 const puppeteer = require("puppeteer");
@@ -9,17 +8,13 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deployment
 
-// Fix __dirname for ES module if you are using 'import' syntax
-// If your main file is `index.js` and uses `require`, you might not need this
-// but it's good practice for mixed environments or if you switch to ES modules fully.
-const __filename = typeof import.meta.url !== 'undefined' ? fileURLToPath(import.meta.url) : null;
-const __dirname = __filename ? path.dirname(__filename) : process.cwd();
-
+// __dirname is already available in CommonJS modules (when using require)
+// No need to define it using fileURLToPath.
 
 // 👇 Define the path to the downloaded Chrome executable for Render deployment
 // Based on your logs: /opt/render/project/src/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
 const chromePath = path.resolve(
-    __dirname,
+    __dirname, // __dirname is available here
     '.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome'
 );
 
@@ -305,14 +300,9 @@ app.get("/auto-login", async (req, res) => {
         }
     }
 });
-// --- End Puppeteer Automation Route ---
 
-
-// Server
-const PORT = process.env.PORT || 4000; // Using 4000 as fallback based on your previous full code context
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`Access automation at: http://localhost:${PORT}/auto-login`);
     console.log(`(On Render, use your service URL instead of localhost)`);
-    // connectToWhatsApp(); // Uncomment if you want WhatsApp to connect on server start
 });
