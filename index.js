@@ -61,8 +61,7 @@ app.get("/auto-login", async (req, res) => {
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage", // Recommended for Docker/Linux environments to avoid memory issues
             ],
-            executablePath: chromePath, 
-            dumpio: true, 
+            executablePath: chromePath 
         });
 
         const page = await browser.newPage();
