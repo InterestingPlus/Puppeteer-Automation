@@ -61,7 +61,8 @@ app.get("/auto-login", async (req, res) => {
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage", // Recommended for Docker/Linux environments to avoid memory issues
             ],
-            executablePath: chromePath, // 👈 Must match downloaded path
+            executablePath: chromePath, 
+            dumpio: true, 
         });
 
         const page = await browser.newPage();
@@ -72,7 +73,7 @@ app.get("/auto-login", async (req, res) => {
 
         console.log("🌐 Navigating to https://gramsuvidha.gujarat.gov.in...");
         await page.goto("https://gramsuvidha.gujarat.gov.in", {
-            waitUntil: "domcontentloaded",
+            waitUntil: "networkidle0", 
             timeout: 90000, // Explicitly set timeout for this navigation
         });
         console.log("✅ Navigation complete.");
