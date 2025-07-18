@@ -11,7 +11,43 @@ const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deploy
 
 // 👇 Define the path to the downloaded Chrome executable
 // Based on your logs, Puppeteer downloads it to:
+// /opt/render/project/src/.cache/puppeteer/chrome/linux-// server.js
+
+const express = require("express");
+const puppeteer = require("puppeteer");
+const path = require("path"); // Required for resolving chromePath
+
+const app = express();
+app.use(express.json());
+
+const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deployment
+
+// 👇 Define the path to the downloaded Chrome executable
+// Based on your logs, Puppeteer downloads it to:
 // /opt/render/project/src/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome
+// So, we construct the path relative to __dirname (which is /opt/render/project/src/)
+// const chromePath = path.resolve(
+//   __dirname,
+//   ".cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome"
+// );
+
+app.get("/", (req, res) => {
+  res.send("Hello World <a href='/auto-login'>Get Logged In</a>");
+});
+
+// ✅ Helper to get option value by its visible text
+async function getOptionValueByText(page, selectName, visibleText) {
+  console.log(
+    `🔍 Searching for option "${visibleText}" in select "${selectName}"...`
+  );
+  const optionValue = await page.evaluate(
+    (selectName, visibleText) => {
+      const select = document.querySelector(`select[name="${selectName}"]`);
+      if (!select) return null;
+
+      const option = Array.from(select.options).find(
+        (opt) => opt.textContent.trim() === visibleText
+131.0.6778.204/chrome-linux64/chrome
 // So, we construct the path relative to __dirname (which is /opt/render/project/src/)
 // const chromePath = path.resolve(
 //   __dirname,
