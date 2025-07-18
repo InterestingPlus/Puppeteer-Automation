@@ -56,22 +56,20 @@ app.get("/auto-login", async (req, res) => {
   let browser; // Declare browser outside try block for finally
   try {
     console.log("🚀 Launching Puppeteer browser...");
-    browser = await puppeteer.launch({
-      headless: "new", // Use 'new' for the new headless mode
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage", // Recommended for Docker/Linux environments to avoid memory issues
-      ],
-      // executablePath: chromePath,
-    });
+  const browser = await puppeteer.launch({
+  headless: false, // run in full browser mode
+  args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  timeout: 0
+});
+
 
    const page = await browser.newPage();
 
 // ✅ Set a real user-agent to avoid bot detection
 await page.setUserAgent(
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36'
 );
+
 
 // ⏱️ Increase timeout globally
 page.setDefaultNavigationTimeout(90000); // 90 seconds
@@ -79,11 +77,11 @@ page.setDefaultTimeout(90000); // 90 seconds
 
 
     console.log("🌐 Navigating to https://gramsuvidha.gujarat.gov.in...");
-  await page.goto("https://gramsuvidha.gujarat.gov.in", {
-  waitUntil: "domcontentloaded", // ✅ Less strict than 'networkidle0'
-  timeout: 90000,
+  await page.goto('https://gramsuvidha.gujarat.gov.in', {
+  waitUntil: 'networkidle2', // or 'domcontentloaded'
+  timeout: 180000 // 3 mins
 });
-
+    
     console.log("✅ Navigation complete.");
 
     // 🧾 Fill Login ID
