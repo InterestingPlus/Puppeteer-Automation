@@ -56,8 +56,10 @@ app.get("/auto-login", async (req, res) => {
   let browser; // Declare browser outside try block for finally
   try {
     console.log("🚀 Launching Puppeteer browser...");
-  const browser = await puppeteer.launch({
-  headless: false, // run in full browser mode
+
+
+const browser = await puppeteer.launch({
+  headless: "new", // or true
   args: ['--no-sandbox', '--disable-setuid-sandbox'],
   timeout: 0
 });
