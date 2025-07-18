@@ -1,20 +1,7 @@
 // server.js
 
 const express = require("express");
-const puppeteer = require("puppeteer");
-const path = require("path"); // Required for resolving chromePath
-
-const app = express();
-app.use(express.json());
-
-const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deployment
-
-// 👇 Define the path to the downloaded Chrome executable
-// Based on your logs, Puppeteer downloads it to:
-// /opt/render/project/src/.cache/puppeteer/chrome/linux-// server.js
-
-const express = require("express");
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-core");
 const path = require("path"); // Required for resolving chromePath
 
 const app = express();
@@ -31,28 +18,7 @@ const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deploy
 //   ".cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome"
 // );
 
-app.get("/", (req, res) => {
-  res.send("Hello World <a href='/auto-login'>Get Logged In</a>");
-});
-
-// ✅ Helper to get option value by its visible text
-async function getOptionValueByText(page, selectName, visibleText) {
-  console.log(
-    `🔍 Searching for option "${visibleText}" in select "${selectName}"...`
-  );
-  const optionValue = await page.evaluate(
-    (selectName, visibleText) => {
-      const select = document.querySelector(`select[name="${selectName}"]`);
-      if (!select) return null;
-
-      const option = Array.from(select.options).find(
-        (opt) => opt.textContent.trim() === visibleText
-131.0.6778.204/chrome-linux64/chrome
-// So, we construct the path relative to __dirname (which is /opt/render/project/src/)
-// const chromePath = path.resolve(
-//   __dirname,
-//   ".cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome"
-// );
+const executablePath = "/usr/bin/google-chrome"; // or Windows/macOS path
 
 app.get("/", (req, res) => {
   res.send("Hello World <a href='/auto-login'>Get Logged In</a>");
@@ -95,31 +61,18 @@ app.get("/auto-login", async (req, res) => {
 
     const browser = await puppeteer.launch({
       headless: "new", // or true
+      // headless: false, // or true
+      executablePath,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
       timeout: 0,
     });
 
     const page = await browser.newPage();
-
-    // ✅ Set a real user-agent to avoid bot detection
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36"
-    );
-
-    // ⏱️ Increase timeout globally
-    page.setDefaultNavigationTimeout(90000); // 90 seconds
-    page.setDefaultTimeout(90000); // 90 seconds
-
-    console.log("🌐 Navigating to https://gramsuvidha.gujarat.gov.in...");
     await page.goto("https://gramsuvidha.gujarat.gov.in", {
-      waitUntil: "networkidle2", // or 'domcontentloaded'
-      timeout: 180000, // 3 mins
+      waitUntil: "domcontentloaded",
     });
 
-    console.log("✅ Navigation complete.");
-
     // 🧾 Fill Login ID
-    console.log(`✍️ Typing login ID: ${login_id}`);
     await page.type('input[name="txtSiteID"]', login_id);
     await page.evaluate(() => {
       const ddlModule = document.querySelector('input[name="txtSiteID"]');
@@ -127,16 +80,17 @@ app.get("/auto-login", async (req, res) => {
         ddlModule.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    console.log("⏳ Waiting for AJAX to trigger dropdown loading...");
-    await new Promise((res) => setTimeout(res, 3000)); // Increased wait time for AJAX
+    await new Promise((res) => setTimeout(res, 1500)); // trigger AJAX loading of dropdowns
 
     // 🕐 Wait until options are loaded
+    // ⏳ Wait until both DDLModule and DDLUser dropdowns are populated
     let dropdownsReady = false;
 
-    console.log("🔄 Checking if dropdowns are populated...");
     while (!dropdownsReady) {
+      await Promise.all([page.click('select[name="DDLModule"]')]);
       dropdownsReady = await page.evaluate(() => {
         const moduleSelect = document.querySelector('select[name="DDLModule"]');
+
         const userSelect = document.querySelector('select[name="DDLUser"]');
 
         return (
@@ -148,17 +102,14 @@ app.get("/auto-login", async (req, res) => {
       });
 
       if (!dropdownsReady) {
-        console.log(`⏳ Waiting for dropdowns to populate...`);
-        await new Promise((res) => setTimeout(res, 1300));
+        console.log("⏳ Waiting for dropdowns to populate...");
+        await new Promise((res) => setTimeout(res, 500));
       }
     }
 
     if (!dropdownsReady) {
-      throw new Error(
-        "❌ Dropdowns not loaded even after waiting for multiple attempts."
-      );
+      throw new Error("❌ Dropdowns not loaded even after waiting.");
     }
-    console.log("✅ Dropdowns are ready!");
 
     const moduleValue = await getOptionValueByText(
       page,
@@ -168,133 +119,93 @@ app.get("/auto-login", async (req, res) => {
     const userValue = await getOptionValueByText(page, "DDLUser", "તલાટી");
 
     if (!moduleValue || !userValue) {
-      throw new Error(
-        "❌ Could not find required dropdown values for 'પંચાયત વેરો' or 'તલાટી'"
-      );
+      throw new Error("❌ Could not find required dropdown values");
     }
 
-    console.log(`Selecting DDLModule with value: ${moduleValue}`);
     await page.evaluate((value) => {
       const select = document.querySelector('select[name="DDLModule"]');
-      if (select) {
-        // Added null check
-        select.value = value;
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      // if (select) {
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
     }, moduleValue);
-    await new Promise((res) => setTimeout(res, 1000)); // Small wait after module change
 
     await Promise.all([page.click('select[name="DDLUser"]')]);
-
-    console.log(`Selecting DDLUser with value: ${userValue}`);
     await page.evaluate((userValue) => {
       const select = document.querySelector('select[name="DDLUser"]');
-      if (select) {
-        // Added null check
-        const option = Array.from(select.options).find(
-          (opt) => opt.value === userValue
-        );
+      const option = Array.from(select.options).find(
+        (opt) => opt.value === userValue
+      );
 
-        if (option) {
-          option.selected = true;
-          select.value = option.value;
-          select.dispatchEvent(new Event("change", { bubbles: true }));
+      if (option) {
+        option.selected = true;
+        select.value = option.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
 
-          // 🔁 Trigger postback manually, same as onchange="setTimeout('__doPostBack(...')"
-          // This part is crucial for ASP.NET postbacks
-          setTimeout(() => {
-            const eventTarget = document.getElementById("__EVENTTARGET");
-            const eventArgument = document.getElementById("__EVENTARGUMENT");
-            if (eventTarget && eventArgument) {
-              eventTarget.value = "DDLUser";
-              eventArgument.value = "";
-              // Ensure form is submitted, assuming 'form1' is the correct ID
-              const form = document.forms["form1"];
-              if (form) {
-                form.submit();
-              } else {
-                console.error("Form 'form1' not found for submission.");
-              }
-            } else {
-              console.error("__EVENTTARGET or __EVENTARGUMENT not found.");
-            }
-          }, 0); // Execute immediately on next tick
-        }
+        // 🔁 Trigger postback manually, same as onchange="setTimeout('__doPostBack(...')"
+        setTimeout(() => {
+          const eventTarget = document.getElementById("__EVENTTARGET");
+          const eventArgument = document.getElementById("__EVENTARGUMENT");
+          if (eventTarget && eventArgument) {
+            eventTarget.value = "DDLUser";
+            eventArgument.value = "";
+
+            document.forms["form1"].submit();
+          }
+        }, 0);
       }
     }, userValue);
 
-    console.log("⏳ Waiting for page to reload after DDLUser change...");
-    // Wait for navigation after the DDLUser change triggers a postback
-    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 90000 });
-    console.log("✅ Page reloaded after DDLUser change.");
+    await new Promise((res) => setTimeout(res, 1500));
 
     let year;
-    console.log("🔄 Waiting for year dropdown to be populated...");
     do {
       try {
         year = await page.$eval("#DDLYear", (el) => el.value);
-        console.log("📅 Year found:", year);
-      } catch (err) {
-        console.log(`⏳ Year dropdown not yet ready`);
+        console.log("📅 Year:", year);
+
         await new Promise((res) => setTimeout(res, 1000));
-      }
+      } catch (err) {}
     } while (!year);
 
-    if (!year) {
-      throw new Error("❌ Year dropdown not loaded even after waiting.");
-    }
-
     // 🧾 Fill password
-    console.log("✍️ Typing password...");
     await page.type('input[name="TxtPassword"]', password);
 
-    // Wait for captcha value (sometimes pre-filled)
+    // Wait for captcha value
     let captchaValue;
-    console.log("🔄 Waiting for captcha value...");
     do {
       try {
         captchaValue = await page.$eval('input[name="txtCaptcha"]', (el) =>
           el.value.trim()
         );
-        if (captchaValue) {
-          console.log(`✅ Captcha value found: "${captchaValue}"`);
-        } else {
-          console.log(`⏳ Captcha value not yet available`);
-        }
+        console.log("waiting for captcha...");
       } catch (e) {
-        console.log(`⏳ Captcha element not found or value empty`);
+        console.log("cannot find captcha value");
       }
       await new Promise((res) => setTimeout(res, 2000));
     } while (!captchaValue);
 
-    if (!captchaValue) {
-      throw new Error("❌ Captcha value not found after multiple attempts.");
-    }
-
     // Set captcha confirm
-    console.log(
-      `✍️ Typing captcha confirmation: ${captchaValue.replace(/\s+/g, "")}`
-    );
     await page.type(
       'input[name="txtCompare"]',
       captchaValue.replace(/\s+/g, "")
     );
 
-    console.log("⏳ Waiting before login submission...");
+    // Submit form
     await new Promise((res) => setTimeout(res, 2000));
 
-    // Override validate function to always return true
-    console.log("🚨 Overriding validate() function to always return true.");
     await page.evaluate(() => {
       window.validate = () => true;
     });
 
-    console.log("⬆️ Clicking login button and waiting for navigation...");
+    await new Promise((res) => setTimeout(res, 2000));
+    console.log("🚨 validate() function overridden to always return true.");
+
     await Promise.all([
       page.click('input[name="BtnLogin"]'),
-      page.waitForNavigation({ waitUntil: "networkidle2", timeout: 90000 }), // Explicit timeout for login navigation
+      page.waitForNavigation({ waitUntil: "networkidle2" }),
     ]);
-    console.log("✅ Login button clicked and navigation complete.");
+
+    await new Promise((res) => setTimeout(res, 2000));
 
     const currentURL = page.url();
     console.log(`Current URL after login attempt: ${currentURL}`);
