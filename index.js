@@ -101,10 +101,9 @@ page.setDefaultTimeout(90000); // 90 seconds
     // 🕐 Wait until options are loaded
     let dropdownsReady = false;
     let attempts = 0;
-    const maxAttempts = 20; // Try up to 10 seconds (20 * 500ms)
-
+    
     console.log("🔄 Checking if dropdowns are populated...");
-    while (!dropdownsReady && attempts < maxAttempts) {
+    while (!dropdownsReady) {
       // Click to ensure dropdowns are active/visible, though not always necessary
       // await Promise.all([page.click('select[name="DDLModule"]')]); // This might not be needed if input event triggers it
 
@@ -123,12 +122,9 @@ page.setDefaultTimeout(90000); // 90 seconds
 
       if (!dropdownsReady) {
         console.log(
-          `⏳ Waiting for dropdowns to populate... (Attempt ${
-            attempts + 1
-          }/${maxAttempts})`
+          `⏳ Waiting for dropdowns to populate...`
         );
-        await new Promise((res) => setTimeout(res, 500));
-        attempts++;
+        await new Promise((res) => setTimeout(res, 1300));
       }
     }
 
