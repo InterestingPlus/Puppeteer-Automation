@@ -66,17 +66,24 @@ app.get("/auto-login", async (req, res) => {
       // executablePath: chromePath,
     });
 
-    const page = await browser.newPage();
+   const page = await browser.newPage();
 
-    // ⏱️ Increase default timeout for all page operations
-    await page.setDefaultNavigationTimeout(90000); // 90 seconds (was 30s)
-    await page.setDefaultTimeout(90000); // 90 seconds for other operations like .type(), .click()
+// ✅ Set a real user-agent to avoid bot detection
+await page.setUserAgent(
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+);
+
+// ⏱️ Increase timeout globally
+page.setDefaultNavigationTimeout(90000); // 90 seconds
+page.setDefaultTimeout(90000); // 90 seconds
+
 
     console.log("🌐 Navigating to https://gramsuvidha.gujarat.gov.in...");
-    await page.goto("https://gramsuvidha.gujarat.gov.in", {
-      waitUntil: "networkidle0",
-      timeout: 90000, // Explicitly set timeout for this navigation
-    });
+  await page.goto("https://gramsuvidha.gujarat.gov.in", {
+  waitUntil: "domcontentloaded", // ✅ Less strict than 'networkidle0'
+  timeout: 90000,
+});
+
     console.log("✅ Navigation complete.");
 
     // 🧾 Fill Login ID
