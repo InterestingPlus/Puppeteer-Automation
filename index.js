@@ -57,33 +57,29 @@ app.get("/auto-login", async (req, res) => {
   try {
     console.log("🚀 Launching Puppeteer browser...");
 
+    const browser = await puppeteer.launch({
+      headless: "new", // or true
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      timeout: 0,
+    });
 
-const browser = await puppeteer.launch({
-  headless: "new", // or true
-  args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  timeout: 0
-});
+    const page = await browser.newPage();
 
+    // ✅ Set a real user-agent to avoid bot detection
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36"
+    );
 
-   const page = await browser.newPage();
-
-// ✅ Set a real user-agent to avoid bot detection
-await page.setUserAgent(
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115 Safari/537.36'
-);
-
-
-// ⏱️ Increase timeout globally
-page.setDefaultNavigationTimeout(90000); // 90 seconds
-page.setDefaultTimeout(90000); // 90 seconds
-
+    // ⏱️ Increase timeout globally
+    page.setDefaultNavigationTimeout(90000); // 90 seconds
+    page.setDefaultTimeout(90000); // 90 seconds
 
     console.log("🌐 Navigating to https://gramsuvidha.gujarat.gov.in...");
-  await page.goto('https://gramsuvidha.gujarat.gov.in', {
-  waitUntil: 'networkidle2', // or 'domcontentloaded'
-  timeout: 180000 // 3 mins
-});
-    
+    await page.goto("https://gramsuvidha.gujarat.gov.in", {
+      waitUntil: "networkidle2", // or 'domcontentloaded'
+      timeout: 180000, // 3 mins
+    });
+
     console.log("✅ Navigation complete.");
 
     // 🧾 Fill Login ID
@@ -100,18 +96,13 @@ page.setDefaultTimeout(90000); // 90 seconds
 
     // 🕐 Wait until options are loaded
     let dropdownsReady = false;
-    let attempts = 0;
-    
+
     console.log("🔄 Checking if dropdowns are populated...");
     while (!dropdownsReady) {
-      // Click to ensure dropdowns are active/visible, though not always necessary
-      // await Promise.all([page.click('select[name="DDLModule"]')]); // This might not be needed if input event triggers it
-
       dropdownsReady = await page.evaluate(() => {
         const moduleSelect = document.querySelector('select[name="DDLModule"]');
         const userSelect = document.querySelector('select[name="DDLUser"]');
 
-        // Check if elements exist and have more than just the default option
         return (
           moduleSelect &&
           userSelect &&
@@ -121,9 +112,7 @@ page.setDefaultTimeout(90000); // 90 seconds
       });
 
       if (!dropdownsReady) {
-        console.log(
-          `⏳ Waiting for dropdowns to populate...`
-        );
+        console.log(`⏳ Waiting for dropdowns to populate...`);
         await new Promise((res) => setTimeout(res, 1300));
       }
     }
@@ -158,6 +147,8 @@ page.setDefaultTimeout(90000); // 90 seconds
       }
     }, moduleValue);
     await new Promise((res) => setTimeout(res, 1000)); // Small wait after module change
+
+    await Promise.all([page.click('select[name="DDLUser"]')]);
 
     console.log(`Selecting DDLUser with value: ${userValue}`);
     await page.evaluate((userValue) => {
@@ -202,23 +193,16 @@ page.setDefaultTimeout(90000); // 90 seconds
     console.log("✅ Page reloaded after DDLUser change.");
 
     let year;
-    let yearAttempts = 0;
-    const maxYearAttempts = 10;
     console.log("🔄 Waiting for year dropdown to be populated...");
     do {
       try {
         year = await page.$eval("#DDLYear", (el) => el.value);
         console.log("📅 Year found:", year);
       } catch (err) {
-        console.log(
-          `⏳ Year dropdown not yet ready (Attempt ${
-            yearAttempts + 1
-          }/${maxYearAttempts})...`
-        );
+        console.log(`⏳ Year dropdown not yet ready`);
         await new Promise((res) => setTimeout(res, 1000));
-        yearAttempts++;
       }
-    } while (!year && yearAttempts < maxYearAttempts);
+    } while (!year);
 
     if (!year) {
       throw new Error("❌ Year dropdown not loaded even after waiting.");
@@ -230,8 +214,6 @@ page.setDefaultTimeout(90000); // 90 seconds
 
     // Wait for captcha value (sometimes pre-filled)
     let captchaValue;
-    let captchaAttempts = 0;
-    const maxCaptchaAttempts = 15; // Try up to 30 seconds (15 * 2000ms)
     console.log("🔄 Waiting for captcha value...");
     do {
       try {
@@ -241,22 +223,13 @@ page.setDefaultTimeout(90000); // 90 seconds
         if (captchaValue) {
           console.log(`✅ Captcha value found: "${captchaValue}"`);
         } else {
-          console.log(
-            `⏳ Captcha value not yet available (Attempt ${
-              captchaAttempts + 1
-            }/${maxCaptchaAttempts})...`
-          );
+          console.log(`⏳ Captcha value not yet available`);
         }
       } catch (e) {
-        console.log(
-          `⏳ Captcha element not found or value empty (Attempt ${
-            captchaAttempts + 1
-          }/${maxCaptchaAttempts})...`
-        );
+        console.log(`⏳ Captcha element not found or value empty`);
       }
       await new Promise((res) => setTimeout(res, 2000));
-      captchaAttempts++;
-    } while (!captchaValue && captchaAttempts < maxCaptchaAttempts);
+    } while (!captchaValue);
 
     if (!captchaValue) {
       throw new Error("❌ Captcha value not found after multiple attempts.");
