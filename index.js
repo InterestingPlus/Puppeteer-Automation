@@ -1,7 +1,7 @@
 // server.js
-
+const fs = require("fs");
 const express = require("express");
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer");
 const path = require("path"); // Required for resolving chromePath
 
 const app = express();
@@ -50,8 +50,25 @@ async function getOptionValueByText(page, selectName, visibleText) {
   return optionValue;
 }
 
-// 📌 GET Title API
-app.get("/auto-login", async (req, res) => {
+async function wait(ms) {
+  await new Promise((res) => setTimeout(res, ms));
+}
+
+function setSelectValue(selectElement, textToMatch) {
+  const optionToSelect = Array.from(selectElement.options).find(
+    (opt) => opt.text.trim() === textToMatch.trim()
+  );
+
+  if (optionToSelect) {
+    selectElement.value = optionToSelect.value;
+    selectElement.dispatchEvent(new Event("input", { bubbles: true }));
+    selectElement.dispatchEvent(new Event("change", { bubbles: true }));
+  } else {
+    console.warn("❌ Option text not found:", textToMatch);
+  }
+}
+
+async function login(req, res) {
   const login_id = "28494";
   const password = "Mgp@28494";
 
@@ -59,12 +76,22 @@ app.get("/auto-login", async (req, res) => {
   try {
     console.log("🚀 Launching Puppeteer browser...");
 
+    const overrideScript = fs.readFileSync(
+      "override_trantaxreceipt.js",
+      "utf8"
+    );
+
     const browser = await puppeteer.launch({
-      headless: "new", // or true
-      // headless: false, // or true
-      // executablePath,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      // headless: "new", // or true
+      headless: false, // or true
+      /// executablePath,
       timeout: 0,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--start-maximized",
+        "--disable-infobars",
+      ],
     });
 
     const page = await browser.newPage();
@@ -80,7 +107,7 @@ app.get("/auto-login", async (req, res) => {
         ddlModule.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
-    await new Promise((res) => setTimeout(res, 1500)); // trigger AJAX loading of dropdowns
+    await wait(500); // trigger AJAX loading of dropdowns
 
     // 🕐 Wait until options are loaded
     // ⏳ Wait until both DDLModule and DDLUser dropdowns are populated
@@ -163,7 +190,7 @@ app.get("/auto-login", async (req, res) => {
         year = await page.$eval("#DDLYear", (el) => el.value);
         console.log("📅 Year:", year);
 
-        await new Promise((res) => setTimeout(res, 1000));
+        await wait(500);
       } catch (err) {}
     } while (!year);
 
@@ -181,7 +208,7 @@ app.get("/auto-login", async (req, res) => {
       } catch (e) {
         console.log("cannot find captcha value");
       }
-      await new Promise((res) => setTimeout(res, 2000));
+      await wait(1500);
     } while (!captchaValue);
 
     // Set captcha confirm
@@ -191,13 +218,13 @@ app.get("/auto-login", async (req, res) => {
     );
 
     // Submit form
-    await new Promise((res) => setTimeout(res, 2000));
+    await wait(1000);
 
     await page.evaluate(() => {
       window.validate = () => true;
     });
 
-    await new Promise((res) => setTimeout(res, 2000));
+    await wait(2000);
     console.log("🚨 validate() function overridden to always return true.");
 
     await Promise.all([
@@ -205,52 +232,100 @@ app.get("/auto-login", async (req, res) => {
       page.waitForNavigation({ waitUntil: "networkidle2" }),
     ]);
 
-    await new Promise((res) => setTimeout(res, 2000));
+    await wait(1500);
 
     const currentURL = page.url();
     console.log(`Current URL after login attempt: ${currentURL}`);
 
-    if (currentURL.includes("DashBoardPV.aspx")) {
-      console.log("✅ Login successful. Navigating to Milkat Page...");
-      await page.goto(
-        "https://gramsuvidha.gujarat.gov.in/PanchayatVero/ListMasterMilkatPV.aspx",
-        { waitUntil: "networkidle2", timeout: 90000 } // Explicit timeout for final navigation
-      );
-      console.log("✅ Successfully navigated to Milkat Page.");
+    // Login End =======================
 
-      return res.json({
-        success: true,
-        message: "Logged in successfully and navigated to Milkat Page.",
-        finalUrl: page.url(),
-      });
-    } else {
-      console.log(
-        "❌ Login failed. Current URL does not include 'DashBoardPV.aspx'."
-      );
+    if (!currentURL.includes("DashBoardPV.aspx")) {
+      throw new Error("Login failed. Not redirected to dashboard.");
+    }
+
+    console.log("✅ Login successful. Redirecting to Receipt Page...");
+
+    // Add Receipt Start =======================
+
+    const recieptPageURL =
+      "https://gramsuvidha.gujarat.gov.in/PanchayatVero/TranTaxReceiptPV.aspx";
+    await page.goto(
+      recieptPageURL,
+      { waitUntil: "networkidle2" } // Explicit timeout for final navigation
+    );
+    console.log("✅ Successfully navigated to Milkat Page.");
+
+    const milkat_id = "5.0";
+    await page.evaluate((id) => {
+      window.SearchMilkatMaster(id);
+    }, milkat_id);
+
+    // Selectig Payment Method
+    // Wait for Payment Method dropdown
+    await page.waitForSelector(
+      "select[name='ctl00$ContentPlaceHolder1$DDLCashBank']",
+      { visible: true }
+    );
+    // Select 'રોકડ' as Payment Mode
+    await page.select(
+      "select[name='ctl00$ContentPlaceHolder1$DDLCashBank']",
+      "F7E82911-DC42-4F06-9644-D8A925205B23"
+    );
+    // "રોકડ";
+
+    // Total Payement
+    // Wait for and Click input with tabindex 13 (simulate clicking total)
+    await page.waitForSelector("input[tabindex='13']", { visible: true });
+    await page.click("input[tabindex='13']");
+
+    console.log("🧠 Injecting script or waiting...");
+
+    await wait(500);
+    // ✅ Inject the override script directly:
+    await page.evaluate(overrideScript);
+    console.log("✅ override_trantaxreceipt.js injected");
+
+    console.log("Done, waiting to submit!");
+    await wait(1000);
+
+    const submitBtnSelector = "#ctl00_ContentPlaceHolder1_BtnSave";
+    const isSubmitVisible = await page.$(submitBtnSelector);
+    if (isSubmitVisible) {
+      await page.click(submitBtnSelector);
+      console.log("✅ Form submitted!");
+
+      await wait(500);
       return res
-        .status(400)
-        .json({ error: "Login failed.", finalUrl: page.url() });
+        .status(200)
+        .json({ success: true, message: `Receipt Number Updated.` });
+    } else {
+      console.log("❌ Submit button not found.");
     }
   } catch (err) {
     console.error("❌ Automation failed:", err);
     // Provide more specific error details
+
     return res.status(500).json({
       error: "Internal error.",
       message: err.message, // Send only the error message, not the full object
       name: err.name || "Error", // Include error name if available
     });
-  } finally {
-    // Ensure the browser is closed even if an error occurs
-    if (browser) {
-      console.log("Closing browser...");
-      await browser.close();
-      console.log("Browser closed.");
-    }
   }
+
+  if (browser) {
+    console.log("Closing browser...");
+    await browser.close();
+    console.log("Browser closed.");
+  }
+}
+
+// 📌 GET Receipt Number
+app.get("/add-receipt", async (req, res) => {
+  login(req, res);
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`Access automation at: http://localhost:${PORT}/auto-login`);
+  console.log(`Access automation at: http://localhost:${PORT}/add-receipt`);
   console.log(`(On Render, use your service URL instead of localhost)`);
 });
