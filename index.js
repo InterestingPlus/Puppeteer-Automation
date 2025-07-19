@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000; // Use process.env.PORT for Render deploy
 //   ".cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome"
 // );
 
-const executablePath = "/usr/bin/google-chrome"; // or Windows/macOS path
+// const executablePath = "/usr/bin/google-chrome"; // or Windows/macOS path
 
 app.get("/", (req, res) => {
   res.send("Hello World <a href='/auto-login'>Get Logged In</a>");
@@ -62,7 +62,7 @@ app.get("/auto-login", async (req, res) => {
     const browser = await puppeteer.launch({
       headless: "new", // or true
       // headless: false, // or true
-      executablePath,
+      // executablePath,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
       timeout: 0,
     });
