@@ -82,8 +82,8 @@ async function login(req, res) {
     );
 
     const browser = await puppeteer.launch({
-      // headless: "new", // or true
-      headless: false, // or true
+      headless: "new", // or true
+      // headless: false, // or true
       /// executablePath,
       timeout: 0,
       args: [
